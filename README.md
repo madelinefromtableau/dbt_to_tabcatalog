@@ -30,7 +30,7 @@ def get_jobs(token)
     payload={}
     headers = {
       'Content-Type': 'appication/json',
-      'Authorization': 'Token ccd277aedc74569a97db555667f3785f33a73f13'
+      'Authorization': 'Token '+ token
     }
 
     response = requests.request("GET", url, headers=headers, data=payload)
@@ -41,7 +41,7 @@ def get_jobs(token)
 ```
     
 ### Get JobID
-### Get information about a job
+
 ### create table of models/executecompletedat/uniqueId
 ```py
 def get_models_information(token, job_id):
@@ -62,6 +62,36 @@ def get_models_information(token, job_id):
 ```
     
 ### create table of column names and descriptions with unique Id
+```py
+def get_all_column_descriptions(token, job_id):
+    #for each model, get column descriptions in a table with table name, column name, description
+    #union all together
+    url = "https://metadata.cloud.getdbt.com/graphql"
+
+    payload="{\"query\":\"{\\n  models(jobId: " + job_id + ") {\\n    uniqueId\\n    executionTime\\n    status\\n    executeCompletedAt\\n    database\\n    columns {\\n        name\\n        description\\n    }\\n\\n  }\\n}\",\"variables\":{}}"
+    headers = {
+      'Authorization': 'Token '+ token
+      'Content-Type': 'application/json'
+    }
+
+    response = requests.request("POST", url, headers=headers, data=payload)
+
+    response_json = json.loads(response.text)
+    models_table = pd.json_normalize(response_json['data']['models'])
+    model_to_text_description = models_table[['uniqueId', 'executeCompletedAt', 'database']]
+    column_info = pd.DataFrame(columns = ['name','description','uniqueId'])
+    
+    for index,row in models_table.iterrows():
+        
+
+        column_descriptions = pd.json_normalize(row['columns'])
+        column_descriptions['uniqueId'] = row['uniqueId'].split('.')[-1]
+        column_info = pd.concat([column_info, column_descriptions], ignore_index=True)
+    
+    to_return = [model_to_text_description, column_info]    
+    return(to_return)
+
+```
 ### Authenticate to Tableau
 ```py
  def authenticate_tableau(url_name,PAT,site_name, token_name):
