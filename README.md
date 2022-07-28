@@ -3,7 +3,7 @@ script for automating column name/descriptions to tableau catalog table descript
 
 ### Authenticate to dbt
 ### Get Account ID
-```
+```py
 def get_account_id(token):
     
     url = "https://cloud.getdbt.com/api/v2/accounts/"
@@ -23,7 +23,7 @@ def get_account_id(token):
 
 ### Get projects
 ### Get jobs based on a project
-```
+```py
 def get_jobs(token)
     url = "https://cloud.getdbt.com/api/v2/accounts/60964/jobs"
 
@@ -43,7 +43,7 @@ def get_jobs(token)
 ### Get JobID
 ### Get information about a job
 ### create table of models/executecompletedat/uniqueId
-```
+```py
 def get_models_information(token, job_id):
 
     url = "https://metadata.cloud.getdbt.com/graphql"
@@ -63,7 +63,7 @@ def get_models_information(token, job_id):
     
 ### create table of column names and descriptions with unique Id
 ### Authenticate to Tableau
-```
+```py
  def authenticate_tableau(url_name,PAT,site_name, token_name):
     url = "https://" + url_name + " /api/3.13/auth/signin"
 
@@ -93,12 +93,12 @@ def get_models_information(token, job_id):
     req_strings=[token,site_id]
     return(req_strings)
 ```
-### Get list of databases
-```
-def get_table_luids(url_name, database_name, token)
+### Get list of tables from a database
+```py
+def get_table_luids(url_name, database_type, database_name, token)
 mdapi_query = '''
 query get_databases {
-  databases (filter: {connectionType: "snowflake", name:"''' + database_name + '''"}){
+  databases (filter: {connectionType: " +database_type+ ", name:"''' + database_name + '''"}){
  name
  id
  tables{
@@ -129,9 +129,27 @@ tableau_tables_info = pd.DataFrame(table_dictionary, columns=['table_name','tabl
 return(tableau_tables_info)
 ```
 
-### filter to one database get tables
-### Get column names and column IDs
+### Get table ID
+```py
+def get_table_id(url_name, table_name, site_id, token):
+    get_tables_url = "https://"+url_name+"/api/3.13/sites/"+site_id+"/tables"
+
+    payload = ""
+    headers = {
+      'X-Tableau-Auth': token
+    }
+
+    table_response = requests.request("GET", get_tables_url, headers=headers, data=payload)
+    table_id_string = table_response.text.split('name="'+table_name+'"',1)
+    table_id_string_split1 = table_id_string[0].split('<table id="')
+    table_id_string_split2 = table_id_string_split1[-1]
+    table_id_string_split3 = table_id_string_split2[0:-1]
+    table_id_string_split4 = table_id_string_split2[0:-2]
+    return(table_id_string_split4)
 ```
+
+### Get column names and column IDs
+```py
 def get_list_of_columns(url_name,table_id,site_id,token):
     get_columns_url = "https://"+url_name+"/api/3.13/sites/"+site_id+"/tables/"+table_id+'/columns'
 
@@ -163,7 +181,7 @@ def get_list_of_columns(url_name,table_id,site_id,token):
     return(tableau_column_info)
  ```
 ### Merge column descriptions and IDs
-```
+```py
 def add_comments_to_tab_table(tableau_columns, dbt_columns):
     join_result = tableau_columns.merge(dbt_columns, how='inner',left_on="column_name",right_on='name')
 
@@ -174,7 +192,7 @@ print(joined_tables)
 ```
 
 ### Publish descriptions to columns
-```
+```py
 def publish_description_to_column(url_name,site_id,table_id,column_id, description_text,token):
     column_description_url = "https://"+url_name+"/api/3.13/sites/"+site_id+"/tables/" + table_id + "/columns/" + column_id
 
@@ -191,7 +209,8 @@ def publish_description_to_column(url_name,site_id,table_id,column_id, descripti
  ```
 ### Publish description to table
 
-```def publish_description_to_table(url_name,site_id,table_id, description_text,token):
+```py
+def publish_description_to_table(url_name,site_id,table_id, description_text,token):
     column_description_url = "https://"+url_name+"/api/3.13/sites/"+site_id+"/tables/" + table_id
 
     payload = "<tsRequest>\n  <description=\"" + description_text +" \">\n  </table>\n</tsRequest>"
