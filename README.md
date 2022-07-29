@@ -16,9 +16,11 @@ By querying the metadata API for a list of tables connected to data sources in T
 
 Then, using Tableau Metadata Methods REST API, you can easily publish descriptions to columns in a table. These cascade down to all published datasources using these columns.
 
+* * *
+DBT data is organized by job. In order to run the API call to get a list of jobs run,  we'll first need our account ID.
 
 ### Get Account ID
-Input: PAT
+Input: PAT   
 Output: Account ID (string)
 
 ```py
@@ -38,9 +40,12 @@ def get_account_id(token):
     account_id = response_json['data'][0]['id']
     return(account_id)
 ```
+* * *
+Next, we'll get the list of jobs and Job IDs so we can query information about them using the dbt Metadata API.
+* * *
 
 ### Get list of jobs and IDs
-Input: account ID, PAT Token
+Input: account ID, PAT Token  
 Output: pandas dataframe with job name, job ID
 
 ```py
@@ -60,16 +65,21 @@ def get_jobs(account_id, token)
     return(name_plus_job_id)
 ```
 
+* * *
+Now that we have a list of names and job IDs, we can isolate one of the IDs to get information about them.
+* * *
+
 ### Create table of models/executecompletedat/uniqueId
-Input: job ID, PAT Token
+Input: job ID, PAT Token  
 Output: Table with all models run during the job and their executedCompletedAt, model name (uniqueId), and database written to.
+
 
 ```py
 def get_models_information(token, job_id):
 
     url = "https://metadata.cloud.getdbt.com/graphql"
     job_id = '102781'
-    payload="{\"query\":\"{\\n  models(jobId: " + job_id + ") {\\n    uniqueId\\n    executionTime\\n    status\\n    executeCompletedAt\\n    dependsOn\\n    database\\n    schema\\n    columns {\\n        name\\n        description\\n    }\\n\\n  }\\n}\",\"variables\":{}}"
+    payload="{\"query\":\"{\\n  models(jobId: " + job_id + ") {\\n    uniqueId\\n    executionTime\\n    status\\n    executeCompletedAt\\n    database\\n    schema\\n\\n  }\\n}\",\"variables\":{}}"
     headers = {
       'Authorization': 'Token ' + token,
       'Content-Type': 'application/json'
@@ -81,9 +91,14 @@ def get_models_information(token, job_id):
     models_table = models_table[['uniqueId', 'executeCompletedAt', 'database']]
     return(models_table)
 ```
-    
+
+* * *
+The above query only grabs the necessary information about a job to publish a table description to Tableau that informs the user that the table is from a dbt model, but if you want to grab other metadata, there are many more fields you can add to your query. see more here:
+
+* * *
+
 ### create table of column names and descriptions with unique Id
-Input: job ID, PAT Token
+Input: job ID, PAT Token  
 Output: Table with all models run during the job and their executedCompletedAt, model name (uniqueId), and database written to.
 Table with all column names, descriptions, and model it belongs to.
 
@@ -117,8 +132,13 @@ def get_all_column_descriptions(token, job_id):
     return(to_return)
 
 ```
+
+* * *
+The above call returns model information along with column names and descriptions.
+* * *
+
 ### Authenticate to Tableau
-Input: url name (e.g. bi.xyz.com), PAT, site_name (e.g. 'superstore'), token_name
+Input: url name (e.g. bi.xyz.com), PAT, site_name (e.g. 'superstore'), token_name  
 Output: temp token, site ID
 
 ```py
@@ -151,8 +171,13 @@ Output: temp token, site ID
     req_strings=[token,site_id]
     return(req_strings)
 ```
+
+* * *
+Now that we have authenticated and gotten our temp token, we can filter through content on the server to only surface tables related to the database we wrote into from dbt.
+* * *
+
 ### Get list of tables from a database
-Input: URL name, database type (e.g. 'databricks'), database name, temp token
+Input: URL name, database type (e.g. 'databricks'), database name, temp token  
 Output: pandas dataframe with table name and table LUID
 
 ```py
@@ -190,6 +215,10 @@ tableau_tables_info = pd.DataFrame(table_dictionary, columns=['table_name','tabl
 return(tableau_tables_info)
 ```
 
+* * *
+We will need the table LUID to make changes to it using the REST API.
+* * *
+
 ### Get table ID
 ```py
 def get_table_id(url_name, table_name, site_id, token):
@@ -209,8 +238,12 @@ def get_table_id(url_name, table_name, site_id, token):
     return(table_id_string_split4)
 ```
 
+* * *
+Now that we have the table LUID, we can grab all columns in the table and their LUIDs to publish descriptions.
+* * *
+
 ### Get column names and column IDs
-Input: URL Name, table LUID, site ID, temp token
+Input: URL Name, table LUID, site ID, temp token  
 Output: Pandas dataframe with column name, column ID
 ```py
 def get_list_of_columns(url_name,table_id,site_id,token):
@@ -243,8 +276,13 @@ def get_list_of_columns(url_name,table_id,site_id,token):
     tableau_column_info = pd.DataFrame(column_dictionary, columns=['column_name','column_id'])
     return(tableau_column_info)
  ```
+ 
+* * *
+Now that we have a dataframe that has all column names and descriptions for a table, we can merge this information with the dbt column descriptions.
+* * *
+
 ### Merge column descriptions and IDs
-Input: tableau column names/LUIDs, dbt column names/description
+Input: tableau column names/LUIDs, dbt column names/description  
 Output: joined table that has column name, LUID and description
 ```py
 def add_comments_to_tab_table(tableau_columns, dbt_columns):
@@ -256,8 +294,12 @@ joined_tables = add_comments_to_tab_table(fct_order_items, columns_table)
 print(joined_tables)
 ```
 
+* * *
+Now that we have a mapping from dbt descriptiosn to tableau column LUIDs, Let's publish the descriptions to Tableau.
+* * *
+
 ### Publish descriptions to columns
-Input: URL Name, Site ID, table LUID, column LUID, description (string), temp token)
+Input: URL Name, Site ID, table LUID, column LUID, description (string), temp token)  
 Output: response code for the API call.
 
 ```py
@@ -275,9 +317,15 @@ def publish_description_to_column(url_name,site_id,table_id,column_id, descripti
     column_description_response_code = column_description_response.text
     return(column_description_response_code)
  ```
+ 
+* * *
+We can also populate the table description with relevant information from DBT.
+* * *
+
 ### Publish description to table
-Input: URL Name, site ID, table LUID, description (string), temp token
-Output: None
+Input: URL Name, site ID, table LUID, description (string), temp token  
+Output: response text
+
 ```py
 def publish_description_to_table(url_name,site_id,table_id, description_text,token):
     column_description_url = "https://"+url_name+"/api/3.13/sites/"+site_id+"/tables/" + table_id
@@ -291,5 +339,5 @@ def publish_description_to_table(url_name,site_id,table_id, description_text,tok
     table_description_response = requests.request("PUT", column_description_url, headers=headers, data=payload)
 
     table_description_response_code = table_description_response.text
-    return
+    return(table_description_response_code
 ```
