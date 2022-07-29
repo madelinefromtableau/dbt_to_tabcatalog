@@ -1,8 +1,26 @@
-# dbt_to_tabcatalog
-script for automating column name/descriptions to tableau catalog table descriptions
+# Automate dbt Metadata to Tableau Catalog
 
-### Authenticate to dbt
+Note: This method employs REST API commands in Python. While REST API commands are a functionality supported by Tableau, note that the use of python or other 3rd party applications and functions may not be supported by Tableau.
+
+WHY: When evaluating Tableau Catalog, many customers have asked how they can move field descriptions freely through their database to Tableau and have that populate downstream. This is extremely important for security and governance. Now, with dbt as that middle layer, there are ways to further enrich 
+
+Right now, a description can exist in a dbt .yaml file. However when an end user connects to a table in Tableau that was written using dbt, the descriptions do not carry over. The Tableau user must manually add them through the server UI at the table level or each time at the datasource level in Tableau Desktop. This can lead to error, duplicative work, and no single source of truth due to lag time for updating the descriptions.
+
+This code seeks to improve the process by using python to automate the movement of dbt descriptions to field descriptions in Tableau Catalog. The script can be run at whatever cadence makes sense for your business.
+
+BASIC WORKFLOW:
+
+By querying dbt by using the administrative and Metadata APIs, you can grab a table of metadata and store it in a pandas dataframe.
+
+By querying the metadata API for a list of tables connected to data sources in Tableau, you can get a list of tables names and table LUIDs. Note: you cannot get table LUID from MDAPI by querying tables object alone, but you can get published data source LUID and database LUID. You can get table LUID if you query database and query downstream tables OR by using the databaseTables object.
+
+Then, using Tableau Metadata Methods REST API, you can easily publish descriptions to columns in a table. These cascade down to all published datasources using these columns.
+
+
 ### Get Account ID
+Input: PAT
+Output: Account ID (string)
+
 ```py
 def get_account_id(token):
     
@@ -21,11 +39,13 @@ def get_account_id(token):
     return(account_id)
 ```
 
-### Get projects
-### Get jobs based on a project
+### Get list of jobs and IDs
+Input: account ID, PAT Token
+Output: pandas dataframe with job name, job ID
+
 ```py
-def get_jobs(token)
-    url = "https://cloud.getdbt.com/api/v2/accounts/60964/jobs"
+def get_jobs(account_id, token)
+    url = "https://cloud.getdbt.com/api/v2/accounts/"+account_id+"/jobs"
 
     payload={}
     headers = {
@@ -39,10 +59,11 @@ def get_jobs(token)
     name_plus_job_id = job_dataframe[['id','name']]
     return(name_plus_job_id)
 ```
-    
-### Get JobID
 
-### create table of models/executecompletedat/uniqueId
+### Create table of models/executecompletedat/uniqueId
+Input: job ID, PAT Token
+Output: Table with all models run during the job and their executedCompletedAt, model name (uniqueId), and database written to.
+
 ```py
 def get_models_information(token, job_id):
 
@@ -62,6 +83,10 @@ def get_models_information(token, job_id):
 ```
     
 ### create table of column names and descriptions with unique Id
+Input: job ID, PAT Token
+Output: Table with all models run during the job and their executedCompletedAt, model name (uniqueId), and database written to.
+Table with all column names, descriptions, and model it belongs to.
+
 ```py
 def get_all_column_descriptions(token, job_id):
     #for each model, get column descriptions in a table with table name, column name, description
@@ -93,6 +118,9 @@ def get_all_column_descriptions(token, job_id):
 
 ```
 ### Authenticate to Tableau
+Input: url name (e.g. bi.xyz.com), PAT, site_name (e.g. 'superstore'), token_name
+Output: temp token, site ID
+
 ```py
  def authenticate_tableau(url_name,PAT,site_name, token_name):
     url = "https://" + url_name + " /api/3.13/auth/signin"
@@ -124,6 +152,9 @@ def get_all_column_descriptions(token, job_id):
     return(req_strings)
 ```
 ### Get list of tables from a database
+Input: URL name, database type (e.g. 'databricks'), database name, temp token
+Output: pandas dataframe with table name and table LUID
+
 ```py
 def get_table_luids(url_name, database_type, database_name, token)
 mdapi_query = '''
@@ -179,6 +210,8 @@ def get_table_id(url_name, table_name, site_id, token):
 ```
 
 ### Get column names and column IDs
+Input: URL Name, table LUID, site ID, temp token
+Output: Pandas dataframe with column name, column ID
 ```py
 def get_list_of_columns(url_name,table_id,site_id,token):
     get_columns_url = "https://"+url_name+"/api/3.13/sites/"+site_id+"/tables/"+table_id+'/columns'
@@ -211,6 +244,8 @@ def get_list_of_columns(url_name,table_id,site_id,token):
     return(tableau_column_info)
  ```
 ### Merge column descriptions and IDs
+Input: tableau column names/LUIDs, dbt column names/description
+Output: joined table that has column name, LUID and description
 ```py
 def add_comments_to_tab_table(tableau_columns, dbt_columns):
     join_result = tableau_columns.merge(dbt_columns, how='inner',left_on="column_name",right_on='name')
@@ -222,6 +257,9 @@ print(joined_tables)
 ```
 
 ### Publish descriptions to columns
+Input: URL Name, Site ID, table LUID, column LUID, description (string), temp token)
+Output: response code for the API call.
+
 ```py
 def publish_description_to_column(url_name,site_id,table_id,column_id, description_text,token):
     column_description_url = "https://"+url_name+"/api/3.13/sites/"+site_id+"/tables/" + table_id + "/columns/" + column_id
@@ -238,7 +276,8 @@ def publish_description_to_column(url_name,site_id,table_id,column_id, descripti
     return(column_description_response_code)
  ```
 ### Publish description to table
-
+Input: URL Name, site ID, table LUID, description (string), temp token
+Output: None
 ```py
 def publish_description_to_table(url_name,site_id,table_id, description_text,token):
     column_description_url = "https://"+url_name+"/api/3.13/sites/"+site_id+"/tables/" + table_id
