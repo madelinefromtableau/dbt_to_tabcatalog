@@ -2,7 +2,7 @@
 
 Note: This method employs REST API commands in Python. While REST API commands are a functionality supported by Tableau, note that the use of python or other 3rd party applications and functions may not be supported by Tableau.
 
-WHY: When evaluating Tableau Catalog, many customers have asked how they can move field descriptions freely through their database to Tableau and have that populate downstream. This is extremely important for security and governance. Now, with dbt as that middle layer, there are ways to further enrich 
+WHY: When evaluating Tableau Catalog, many customers have asked how they can move field descriptions freely through their database to Tableau and have that populate downstream. This is extremely important for security and governance. DBT can also store rich column descriptions specific to models run during a job.
 
 Right now, a description can exist in a dbt .yaml file. However when an end user connects to a table in Tableau that was written using dbt, the descriptions do not carry over. The Tableau user must manually add them through the server UI at the table level or each time at the datasource level in Tableau Desktop. This can lead to error, duplicative work, and no single source of truth due to lag time for updating the descriptions.
 
