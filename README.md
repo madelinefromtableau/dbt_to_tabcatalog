@@ -6,7 +6,7 @@ WHY: When evaluating Tableau Catalog, many customers have asked how they can mov
 
 Right now, a description can exist in a dbt .yaml file. However when an end user connects to a table in Tableau that was written using dbt, the descriptions do not carry over. The Tableau user must manually add them through the server UI at the table level or each time at the datasource level in Tableau Desktop. This can lead to error, duplicative work, and no single source of truth due to lag time for updating the descriptions.
 
-This code seeks to improve the process by using python to automate the movement of dbt descriptions to field descriptions in Tableau Catalog. The script can be run at whatever cadence makes sense for your business.
+This code seeks to improve the process by using python to automate the movement of dbt descriptions to field descriptions in Tableau Catalog. As changes are made and new models are created, the script can be run at whatever cadence makes sense for your business, daily, weekly, or you could make it event-based. 
 
 BASIC WORKFLOW:
 
@@ -15,6 +15,7 @@ By querying dbt by using the administrative and Metadata APIs, you can grab a ta
 By querying the metadata API for a list of tables connected to data sources in Tableau, you can get a list of tables names and table LUIDs. Note: you cannot get table LUID from MDAPI by querying tables object alone, but you can get published data source LUID and database LUID. You can get table LUID if you query database and query downstream tables OR by using the databaseTables object.
 
 Then, using Tableau Metadata Methods REST API, you can easily publish descriptions to columns in a table. These cascade down to all published datasources using these columns.
+
 
 * * *
 dbt data is organized by job. In order to run the API call to get a list of jobs run,  we'll first need our account ID.
